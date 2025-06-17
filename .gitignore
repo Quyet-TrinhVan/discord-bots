@@ -88,3 +88,6 @@ desktop.ini
 # dotenv environment variables
 .env
 .env.*
+
+# Ignore credentials and secrets
+calendar_service/credentials/

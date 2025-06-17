@@ -2,7 +2,7 @@ import discord
 import os
 from dotenv import load_dotenv
 from gemini_utils import extract_calendar_command
-from calendar_service import add_event, get_events_for_date
+from calendar_service import add_event, get_events_for_date, delete_event
 from datetime import datetime
 
 load_dotenv()
@@ -36,7 +36,7 @@ async def on_message(message):
     title = parsed.get('title') or "schedule"
 
     if intent == "add_schedule":
-        add_event("Working", date, "07:30")
+        add_event("Working", date, time)
         await message.channel.send(f"✅ Added work schedule {date}")
 
     elif intent == "add_event":
@@ -56,5 +56,9 @@ async def on_message(message):
                 time = e['start'].get('dateTime', 'N/A')[11:16]
                 reply += f"- {time} | {e.get('summary', 'No title')}\n"
             await message.channel.send(reply)
-            
+    elif intent == "delete_event":
+        if delete_event(date, time, title):
+            await message.channel.send(f"🗑️ Deleted event '{title}' on {date} at {time or 'any time'}")
+        else:
+            await message.channel.send("❌ No event to delete!")    
 client.run(TOKEN)

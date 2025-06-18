@@ -1,12 +1,23 @@
 import google.generativeai as genai
 import os
 import json
+import re
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 load_dotenv()
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
 model = genai.GenerativeModel("gemini-2.0-flash")
+
+def replace_relative_dates(prompt: str) -> str:
+    today = datetime.now().date()
+    replacements = {
+        "tomorrow": str(today + timedelta(days=1)),
+        "today": str(today)
+    }
+    for word, actual in replacements.items():
+        prompt = re.sub(rf"\b{word}\b", actual, prompt, flags=re.IGNORECASE)
+    return prompt
 
 def extract_calendar_command(user_prompt: str) -> dict:
     system_prompt = """
@@ -18,15 +29,17 @@ def extract_calendar_command(user_prompt: str) -> dict:
             "time": "HH:MM" | null,
             "title": "string" | null
         }
-        If user says 'tomorrow' then convert to actual date (YYYY-MM-DD).
         If a field is not available, return null for that field.
         If the sentence is unrelated to calendar scheduling, return null.
     """
+
+    prompt_text = replace_relative_dates(user_prompt)
+
     response = model.generate_content([
         system_prompt,
-        f"User: {user_prompt}"
+        f"User: {prompt_text}"
     ])
-    
+
     text = getattr(response, 'text', None)
     if text is None:
         return None
@@ -37,10 +50,13 @@ def extract_calendar_command(user_prompt: str) -> dict:
         text = text.lstrip('`').strip()
     if text.endswith('```'):
         text = text[:-3].strip()
-    try:
-        result = json.loads(text)
-        return result
-    except Exception as e:
+
+    match = re.search(r"\{[\s\S]*\}", text)
+    if not match:
         return None
 
-
+    try:
+        result = json.loads(match.group())
+        return result
+    except json.JSONDecodeError:
+        return None

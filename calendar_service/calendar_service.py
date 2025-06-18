@@ -14,19 +14,7 @@ credentials = service_account.Credentials.from_service_account_file(
 service = build('calendar', 'v3', credentials=credentials)
 tz = pytz.timezone(TIMEZONE)
 
-def add_event(summary, date_str, time_str):
-    start_time = tz.localize(datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M"))
-    end_time = start_time + timedelta(hours=1)
-
-    event = {
-        'summary': summary,
-        'start': {'dateTime': start_time.isoformat(), 'timeZone': TIMEZONE},
-        'end': {'dateTime': end_time.isoformat(), 'timeZone': TIMEZONE}
-    }
-    service.events().insert(calendarId=CALENDAR_ID, body=event).execute()
-
-
-def delete_event(date_str, time_str=None, title=None):
+def get_events_for_date(date_str):
     date = datetime.strptime(date_str, "%Y-%m-%d")
     start_of_day = tz.localize(datetime.combine(date, datetime.min.time()))
     end_of_day = tz.localize(datetime.combine(date, datetime.max.time()))
@@ -39,7 +27,42 @@ def delete_event(date_str, time_str=None, title=None):
         orderBy='startTime'
     ).execute()
 
-    events = events_result.get('items', [])
+    return events_result.get('items', [])
+
+def add_event(summary, date_str, time_str=None, duration_minutes=None, description=None, location=None):
+    summary_lower = summary.lower()
+
+    if 'working' in summary_lower or 'làm việc' in summary_lower:
+        start_time = tz.localize(datetime.strptime(f"{date_str} 08:00", "%Y-%m-%d %H:%M"))
+        end_time = tz.localize(datetime.strptime(f"{date_str} 17:30", "%Y-%m-%d %H:%M"))
+        reminders = {
+            'useDefault': False,
+            'overrides': [
+                {'method': 'popup', 'minutes': 30}
+            ]
+        }
+    else:
+        if time_str is None or duration_minutes is None:
+            print("❌ Vui lòng cung cấp cả 'time_str' và 'duration_minutes' cho các loại sự kiện không phải 'working'.")
+            return
+
+        start_time = tz.localize(datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M"))
+        end_time = start_time + timedelta(minutes=duration_minutes)
+        reminders = {'useDefault': False}
+
+    event = {
+        'summary': summary,
+        'description': description or '',
+        'location': location or '',
+        'start': {'dateTime': start_time.isoformat(), 'timeZone': TIMEZONE},
+        'end': {'dateTime': end_time.isoformat(), 'timeZone': TIMEZONE},
+        'reminders': reminders
+    }
+
+    service.events().insert(calendarId=CALENDAR_ID, body=event).execute()
+
+def delete_event(date_str, time_str=None, title=None):
+    events = get_events_for_date(date_str)
     deleted = False
 
     for e in events:
@@ -99,19 +122,3 @@ def update_event(date_str, old_time_str, old_title, new_summary=None, new_date_s
     if not updated:
         print(f"❌ No event found to update with title '{old_title}' on {date_str} at {old_time_str}!")
     return updated
-
-
-def get_events_for_date(date_str):
-    date = datetime.strptime(date_str, "%Y-%m-%d")
-    start_of_day = tz.localize(datetime.combine(date, datetime.min.time()))
-    end_of_day = tz.localize(datetime.combine(date, datetime.max.time()))
-
-    events_result = service.events().list(
-        calendarId=CALENDAR_ID,
-        timeMin=start_of_day.isoformat(),
-        timeMax=end_of_day.isoformat(),
-        singleEvents=True,
-        orderBy='startTime'
-    ).execute()
-
-    return events_result.get('items', [])

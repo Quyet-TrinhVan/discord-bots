@@ -24,10 +24,10 @@ def extract_calendar_command(user_prompt: str) -> dict:
         You are a smart assistant that specializes in analyzing schedules.
         Based on input, please, export to json includes:
         {
-            "intent": "add_schedule" | "add_event" | "check_schedule" | "delete_event",
+            "intent": "add_event" | "check_schedule" | "delete_event" | "update_event",
             "date": "YYYY-MM-DD", 
             "time": "HH:MM" | null,
-            "title": "string" | null
+            "title": "string" | null,
         }
         If a field is not available, return null for that field.
         If the sentence is unrelated to calendar scheduling, return null.

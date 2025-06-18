@@ -39,19 +39,22 @@ async def on_message(message):
     new_date = parsed.get('new_date')
     new_time = parsed.get('new_time')
 
-    if intent == "add_schedule":
-        if date and time:
-            add_event("Working", date, time)
-            await message.channel.send(f"✅ Added work schedule {date} at {time}")
-        else:
-            await message.channel.send("❌ Missing date or time for work schedule.")
+    if intent == "add_event":
+        if not date:
+            await message.channel.send("❌ Missing date.")
+            return
 
-    elif intent == "add_event":
-        if date and time:
-            add_event(title, date, time)
-            await message.channel.send(f"📌 Added event '{title}' to {date} at {time}")
+        if "working" in title.lower() or "làm việc" in title.lower():
+            add_event(title, date_str=date)
+            await message.channel.send(f"✅ Added work schedule on {date} from 08:00 to 17:30")
         else:
-            await message.channel.send("❌ Missing date or time.")
+            if not time:
+                await message.channel.send("❌ Missing time for this event.")
+                return
+
+            default_duration = 60
+            add_event(title, date_str=date, time_str=time, duration_minutes=default_duration)
+            await message.channel.send(f"📌 Added event '{title}' to {date} at {time} for {default_duration} minutes.")
 
     elif intent == "check_schedule":
         events = get_events_for_date(date)

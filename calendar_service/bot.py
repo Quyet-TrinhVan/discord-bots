@@ -44,17 +44,32 @@ async def on_message(message):
             await message.channel.send("❌ Missing date.")
             return
 
-        if "working" in title.lower() or "làm việc" in title.lower():
-            add_event(title, date_str=date)
-            await message.channel.send(f"✅ Added work schedule on {date} from 08:00 to 17:30")
+        title_lower = title.lower()
+
+        if "working" in title_lower or "làm việc" in title_lower:
+            success = add_event(title, date_str=date)
+            if success:
+                await message.channel.send(f"✅ Added work schedule on {date} from 08:00 to 17:30")
+            else:
+                await message.channel.send("❌ Event already exists!")
         else:
             if not time:
                 await message.channel.send("❌ Missing time for this event.")
                 return
 
             default_duration = 60
-            add_event(title, date_str=date, time_str=time, duration_minutes=default_duration)
-            await message.channel.send(f"📌 Added event '{title}' to {date} at {time} for {default_duration} minutes.")
+            success = add_event(
+                summary=title,
+                date_str=date,
+                time_str=time,
+                duration_minutes=default_duration
+            )
+            if success:
+                await message.channel.send(
+                    f"📌 Added event '{title}' on {date} at {time} for {default_duration} minutes."
+                )
+            else:
+                await message.channel.send("❌ Event already exists!")
 
     elif intent == "check_schedule":
         events = get_events_for_date(date)

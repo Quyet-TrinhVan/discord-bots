@@ -31,7 +31,9 @@ def get_events_for_date(date_str):
 
 def add_event(summary, date_str, time_str=None, duration_minutes=None, description=None, location=None):
     summary_lower = summary.lower()
-
+    
+    events = get_events_for_date(date_str)
+            
     if 'working' in summary_lower or 'làm việc' in summary_lower:
         start_time = tz.localize(datetime.strptime(f"{date_str} 08:00", "%Y-%m-%d %H:%M"))
         end_time = tz.localize(datetime.strptime(f"{date_str} 17:30", "%Y-%m-%d %H:%M"))
@@ -43,13 +45,31 @@ def add_event(summary, date_str, time_str=None, duration_minutes=None, descripti
         }
     else:
         if time_str is None or duration_minutes is None:
-            print("❌ Vui lòng cung cấp cả 'time_str' và 'duration_minutes' cho các loại sự kiện không phải 'working'.")
             return
 
         start_time = tz.localize(datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M"))
         end_time = start_time + timedelta(minutes=duration_minutes)
         reminders = {'useDefault': False}
 
+    for e in events:
+        event_title = e.get('summary', '').lower()
+        event_start_str = e.get('start', {}).get('dateTime')
+        if not event_start_str:
+            continue
+
+        try:
+            event_start_dt = datetime.fromisoformat(event_start_str)
+            if event_start_dt.tzinfo is None:
+                event_start_dt = tz.localize(event_start_dt)
+            else:
+                event_start_dt = event_start_dt.astimezone(tz)
+        except ValueError:
+            continue
+
+        if (event_title == summary_lower and
+            event_start_dt.replace(second=0, microsecond=0) == start_time.replace(second=0, microsecond=0)):
+            return
+        
     event = {
         'summary': summary,
         'description': description or '',
